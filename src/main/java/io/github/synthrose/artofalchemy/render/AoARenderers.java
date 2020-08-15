@@ -8,13 +8,19 @@ import io.github.synthrose.artofalchemy.essentia.RegistryEssentia;
 import io.github.synthrose.artofalchemy.fluid.AoAFluids;
 import io.github.synthrose.artofalchemy.item.AoAItems;
 import io.github.synthrose.artofalchemy.item.ItemEssentiaVessel;
+import io.github.synthrose.artofalchemy.render.model.PipeModel;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
+import net.fabricmc.fabric.api.client.model.ModelLoadingRegistry;
+import net.fabricmc.fabric.api.client.model.ModelProviderContext;
+import net.fabricmc.fabric.api.client.model.ModelProviderException;
+import net.fabricmc.fabric.api.client.model.ModelResourceProvider;
 import net.fabricmc.fabric.api.client.rendereregistry.v1.BlockEntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
 import net.fabricmc.fabric.mixin.object.builder.ModelPredicateProviderRegistrySpecificAccessor;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.model.UnbakedModel;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
@@ -32,14 +38,14 @@ public class AoARenderers {
 		RendererFluid.setupFluidRendering(AoAFluids.ALKAHEST, AoAFluids.ALKAHEST_FLOWING,
     			new Identifier("minecraft", "water"), 0xAA0077);
     	RendererFluid.markTranslucent(AoAFluids.ALKAHEST, AoAFluids.ALKAHEST_FLOWING);
-    	
+
     	RegistryEssentia.INSTANCE.forEach((Essentia essentia) -> {
     		Fluid still = AoAFluids.ESSENTIA_FLUIDS.get(essentia);
     		Fluid flowing = AoAFluids.ESSENTIA_FLUIDS_FLOWING.get(essentia);
     		RendererFluid.setupFluidRendering(still, flowing, new Identifier("minecraft", "water"), essentia.getColor());
     		RendererFluid.markTranslucent(still, flowing);
     	});
-    	
+
     	ColorProviderRegistry.BLOCK.register((state, view, pos, tintIndex) -> 0xAA0077,
 				AoABlocks.DISSOLVER, AoABlocks.DISSOLVER_PLUS);
 
@@ -60,7 +66,18 @@ public class AoARenderers {
 					}
 					return (float) MathHelper.clamp(level, 0.0, 1.0);
 				});
-    	
+
+		final Identifier PIPE_MODEL = new Identifier("artofalchemy", "block/essentia_pipe_core_dynamic");
+		ModelLoadingRegistry.INSTANCE.registerResourceProvider(rm -> new ModelResourceProvider() {
+			@Override
+			public UnbakedModel loadModelResource(Identifier identifier, ModelProviderContext modelProviderContext) throws ModelProviderException {
+				if(identifier.equals(PIPE_MODEL)) {
+					return new PipeModel();
+				} else {
+					return null;
+				}
+			}
+		});
 	}
 
 }
