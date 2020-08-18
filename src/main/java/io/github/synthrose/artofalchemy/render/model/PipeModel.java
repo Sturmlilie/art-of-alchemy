@@ -43,7 +43,6 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 	private static final SpriteIdentifier[] SPRITE_IDS = new SpriteIdentifier[] {
 		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_core")),
 		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_tube")),
-		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_blocker")),
 		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_endcap")),
 		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_sidecap")),
 	};
@@ -78,7 +77,7 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		final float maxV;
 
 		// 'sx' stands for "sixteenth of a sprite texture area"
-		public TexCoordEmitter(final Sprite sprite, final int sxMinU, final int sxMaxU, final int sxMinV, final int sxMaxV) {
+		public TexCoordEmitter(final Sprite sprite, final int sxMinU, final int sxMinV, final int sxMaxU, final int sxMaxV) {
 			final float spriteMinU = sprite.getMinU();
 			final float spriteMaxU = sprite.getMaxU();
 			final float spriteMinV = sprite.getMinV();
@@ -92,6 +91,7 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		}
 
 		public void emit(final QuadEmitter emitter) {
+			// Start at the origin (0,0), and move in clockwise direction
 			emitter.sprite(0, 0, minU, minV);
 			emitter.sprite(1, 0, minU, maxV);
 			emitter.sprite(2, 0, maxU, maxV);
@@ -110,34 +110,66 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		emitter.pos(i, pos.getX(), pos.getY(), pos.getZ());
 	}
 
-	private static void buildTubeMesh(final QuadEmitter emitter, final TexCoordEmitter texEmitter, final Matrix4f transformation) {
-		emitPosSx(emitter, transformation, 0,  6, 5, 6);
-		emitPosSx(emitter, transformation, 1, 10, 5, 6);
-		emitPosSx(emitter, transformation, 2, 10, 0, 6);
-		emitPosSx(emitter, transformation, 3,  6, 0, 6);
+	private static void emitRingMesh(final QuadEmitter emitter, final TexCoordEmitter texEmitter, final Matrix4f transformation, final int left, final int bottom, final int right, final int top) {
+
+		emitPosSx(emitter, transformation, 0, right, top,    left);
+		emitPosSx(emitter, transformation, 1, right, bottom, left);
+		emitPosSx(emitter, transformation, 2, left,  bottom, left);
+		emitPosSx(emitter, transformation, 3, left,  top,    left);
 		texEmitter.emit(emitter);
 		emitter.emit();
 
-		emitPosSx(emitter, transformation, 0,  6, 5, 10);
-		emitPosSx(emitter, transformation, 1,  6, 0, 10);
-		emitPosSx(emitter, transformation, 2, 10, 0, 10);
-		emitPosSx(emitter, transformation, 3, 10, 5, 10);
+		emitPosSx(emitter, transformation, 0, left,  top,    right);
+		emitPosSx(emitter, transformation, 1, left,  bottom, right);
+		emitPosSx(emitter, transformation, 2, right, bottom, right);
+		emitPosSx(emitter, transformation, 3, right, top,    right);
 		texEmitter.emit(emitter);
 		emitter.emit();
 
-		emitPosSx(emitter, transformation, 0, 6, 5,  6);
-		emitPosSx(emitter, transformation, 1, 6, 0,  6);
-		emitPosSx(emitter, transformation, 2, 6, 0, 10);
-		emitPosSx(emitter, transformation, 3, 6, 5, 10);
+		emitPosSx(emitter, transformation, 0, left, top,     left);
+		emitPosSx(emitter, transformation, 1, left, bottom,  left);
+		emitPosSx(emitter, transformation, 2, left, bottom, right);
+		emitPosSx(emitter, transformation, 3, left, top,    right);
 		texEmitter.emit(emitter);
 		emitter.emit();
 
-		emitPosSx(emitter, transformation, 0, 10, 5,  6);
-		emitPosSx(emitter, transformation, 1, 10, 5, 10);
-		emitPosSx(emitter, transformation, 2, 10, 0, 10);
-		emitPosSx(emitter, transformation, 3, 10, 0,  6);
+		emitPosSx(emitter, transformation, 0, right, top,    right);
+		emitPosSx(emitter, transformation, 1, right, bottom, right);
+		emitPosSx(emitter, transformation, 2, right, bottom,  left);
+		emitPosSx(emitter, transformation, 3, right, top,     left);
 		texEmitter.emit(emitter);
 		emitter.emit();
+	}
+
+	private static void emitTubeMesh(final QuadEmitter emitter, final TexCoordEmitter texEmitter, final Matrix4f transformation, final int length) {
+		final int l = 5 - length;
+
+		emitRingMesh(emitter, texEmitter, transformation, 6, l, 10, 5);
+	}
+
+	private static void emitEndCapMesh(final QuadEmitter emitter, final TexCoordEmitter texEmitter, final Matrix4f transformation) {
+		emitPosSx(emitter, transformation, 0,  4, 4,  4);
+		emitPosSx(emitter, transformation, 1,  4, 4, 12);
+		emitPosSx(emitter, transformation, 2, 12, 4, 12);
+		emitPosSx(emitter, transformation, 3, 12, 4,  4);
+		texEmitter.emit(emitter);
+		emitter.emit();
+
+		emitPosSx(emitter, transformation, 0,  4, 0,  4);
+		emitPosSx(emitter, transformation, 1, 12, 0,  4);
+		emitPosSx(emitter, transformation, 2, 12, 0, 12);
+		emitPosSx(emitter, transformation, 3,  4, 0, 12);
+		texEmitter.emit(emitter);
+		emitter.emit();
+	}
+
+	private static void emitPortMesh(final QuadEmitter emitter, final TexCoordEmitter shortTubeTexEmitter, final TexCoordEmitter endTexEmitter, final TexCoordEmitter sideTexEmitter, final Matrix4f transformation) {
+		// Short tube
+		emitTubeMesh(emitter, shortTubeTexEmitter, transformation, 1);
+		// End
+		emitEndCapMesh(emitter, endTexEmitter, transformation);
+		// Side
+		emitRingMesh(emitter, sideTexEmitter, transformation, 4, 0, 12, 4);
 	}
 
 	// Transformations that will rotate our base meshes into all 6 cardinal directions
@@ -146,7 +178,7 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 
 		final Matrix4f transform = new Matrix4f();
 		transform.loadIdentity();
-		matrices[Direction.DOWN.ordinal()] = transform;
+		matrices[Direction.DOWN.ordinal()] = new Matrix4f(transform);
 
 		transform.multiply(Matrix4f.translate(0.5f, 0.5f, 0.5f));
 
@@ -189,7 +221,7 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		final QuadEmitter emitter = builder.getEmitter();
 
 		// Build core mesh
-		final TexCoordEmitter coreTexEmitter = new TexCoordEmitter(SPRITES[0], 5, 11, 5, 11);
+		final TexCoordEmitter coreTexEmitter = new TexCoordEmitter(SPRITES[0], 5, 5, 11, 11);
 
 		for (final Direction dir : Direction.values()) {
 			squareSx(emitter, dir, 5, 5, 11, 11, 5);
@@ -200,16 +232,24 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		coreMesh = builder.build();
 
 		final Matrix4f[] cardTransforms = buildCardinalTransformations();
-		final TexCoordEmitter tubeTexEmitter = new TexCoordEmitter(SPRITES[1], 0, 4, 0, 5);
+		final TexCoordEmitter tubeTexEmitter = new TexCoordEmitter(SPRITES[1], 0, 0, 4, 5);
+		final TexCoordEmitter shortTubeTexEmitter = new TexCoordEmitter(SPRITES[1], 0, 0, 4, 1);
+		final TexCoordEmitter portEndCapTexEmitter = new TexCoordEmitter(SPRITES[2], 8, 8, 16, 16);
+		final TexCoordEmitter portSideCapTexEmitter = new TexCoordEmitter(SPRITES[3], 0, 8, 8, 12);
 
 		for (int i = 0; i < 6; ++i) {
 			final FaceMeshes meshes = new FaceMeshes();
+			final Matrix4f transformation = cardTransforms[i];
 
-			buildTubeMesh(emitter, tubeTexEmitter, cardTransforms[i]);
+			emitTubeMesh(emitter, tubeTexEmitter, transformation, 5);
 			meshes.tube = builder.build();
+
+			emitPortMesh(emitter, shortTubeTexEmitter, portEndCapTexEmitter, portSideCapTexEmitter, transformation);
+			meshes.passivePort = builder.build();
 
 			faceMeshes[i] = meshes;
 		}
+
 
 		//~ for(Direction direction : Direction.values()) {
 			//~ int spriteIdx = direction == Direction.UP || direction == Direction.DOWN ? 1 : 0;
@@ -283,7 +323,11 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		// We just render the mesh
 		// XXX
 		renderContext.meshConsumer().accept(coreMesh);
-		renderContext.meshConsumer().accept(faceMeshes[Direction.SOUTH.ordinal()].tube);
+		for (int i = 0; i<6; ++i) {
+		renderContext.meshConsumer().accept(faceMeshes[i].passivePort);
+		}
+		//~ renderContext.meshConsumer().accept(faceMeshes[Direction.UP.ordinal()].tube);
+		//~ renderContext.meshConsumer().accept(faceMeshes[Direction.NORTH.ordinal()].tube);
 		//~ System.out.printf("CHUNKYYYY REBUILDYYY >)\n");
 	}
 
