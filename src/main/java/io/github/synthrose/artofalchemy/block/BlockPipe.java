@@ -12,6 +12,8 @@ import io.github.synthrose.artofalchemy.transport.NetworkNode;
 import net.fabricmc.fabric.api.tag.TagRegistry;
 import net.minecraft.block.*;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
@@ -191,6 +193,14 @@ public class BlockPipe extends Block implements NetworkElement, BlockEntityProvi
 		}
 	}
 
+	private void scheduleChunkRebuild(World world, BlockPos pos) {
+		if (world.isClient()) {
+			// Passing null for state works, but let's be safe
+			final BlockState state = getDefaultState();
+			MinecraftClient.getInstance().worldRenderer.updateBlock(world, pos, state, state, 0);
+		}
+	}
+
 	@Override
 	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
 		Direction dir = player.isSneaking() ? hit.getSide().getOpposite() : hit.getSide();
@@ -222,6 +232,7 @@ public class BlockPipe extends Block implements NetworkElement, BlockEntityProvi
 				} else {
 					setFace(world, pos, dir, IOFace.BLOCK);
 				}
+				scheduleChunkRebuild(world, pos);
 				break;
 			case BLOCK:
 			case INSERTER:
@@ -237,6 +248,7 @@ public class BlockPipe extends Block implements NetworkElement, BlockEntityProvi
 				} else {
 					setFace(world, pos, dir, IOFace.NONE);
 				}
+				scheduleChunkRebuild(world, pos);
 				break;
 		}
 		if (!world.isClient()) {
