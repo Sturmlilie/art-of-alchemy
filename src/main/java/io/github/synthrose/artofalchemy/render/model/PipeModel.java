@@ -46,11 +46,12 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 	private static final SpriteIdentifier[] SPRITE_IDS = new SpriteIdentifier[] {
 		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_core")),
 		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_tube")),
-		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_endcap")),
-		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_sidecap")),
 		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_blocker")),
+		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_sidecap")),
+		new SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEX, new Identifier("artofalchemy:block/essentia_pipe_endcap")),
 	};
-	private Sprite[] SPRITES = new Sprite[SPRITE_IDS.length];
+
+	private Sprite blockBreakSprite;
 
 	private static final class FaceMeshes {
 		private Mesh tube;
@@ -61,6 +62,7 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 	}
 
 	private Mesh coreMesh;
+
 	// Indexed via Direction
 	private FaceMeshes[] faceMeshes = new FaceMeshes[DIRECTION_COUNT];
 
@@ -144,61 +146,75 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		emitter.pos(i, pos.getX(), pos.getY(), pos.getZ());
 	}
 
-	private static void emitRingMeshFront(final QuadEmitter emitter, final Matrix4f transformation, final int left, final int bottom, final int right, final int top) {
-		int i = 0;
-		emitPosSx(emitter, transformation, i++, left,  bottom, left);
-		emitPosSx(emitter, transformation, i++, left,  top,    left);
-		emitPosSx(emitter, transformation, i++, right, top,    left);
-		emitPosSx(emitter, transformation, i++, right, bottom, left);
+	private static final class RingMeshEmitter {
+		private final Matrix4f transformation;
+		private final int left;
+		private final int bottom;
+		private final int right;
+		private final int top;
 
-	}
+		public RingMeshEmitter(final Matrix4f transformation, final int left, final int bottom, final int right, final int top) {
+			this.transformation = transformation;
+			this.left = left;
+			this.bottom = bottom;
+			this.right = right;
+			this.top = top;
+		}
 
-	private static void emitRingMeshLeft(final QuadEmitter emitter, final Matrix4f transformation, final int left, final int bottom, final int right, final int top) {
-		int i = 0;
-		emitPosSx(emitter, transformation, i++, left, bottom, right);
-		emitPosSx(emitter, transformation, i++, left, top,    right);
-		emitPosSx(emitter, transformation, i++, left, top,     left);
-		emitPosSx(emitter, transformation, i++, left, bottom,  left);
-	}
+		public void emitFront(final QuadEmitter emitter) {
+			int i = 0;
+			emitPosSx(emitter, transformation, i++, left,  bottom, left);
+			emitPosSx(emitter, transformation, i++, left,  top,    left);
+			emitPosSx(emitter, transformation, i++, right, top,    left);
+			emitPosSx(emitter, transformation, i++, right, bottom, left);
+		}
 
-	private static void emitRingMeshBack(final QuadEmitter emitter, final Matrix4f transformation, final int left, final int bottom, final int right, final int top) {
-		int i = 0;
-		emitPosSx(emitter, transformation, i++, right, bottom, right);
-		emitPosSx(emitter, transformation, i++, right, top,    right);
-		emitPosSx(emitter, transformation, i++, left,  top,    right);
-		emitPosSx(emitter, transformation, i++, left,  bottom, right);
-	}
+		public void emitLeft(final QuadEmitter emitter) {
+			int i = 0;
+			emitPosSx(emitter, transformation, i++, left, bottom, right);
+			emitPosSx(emitter, transformation, i++, left, top,    right);
+			emitPosSx(emitter, transformation, i++, left, top,     left);
+			emitPosSx(emitter, transformation, i++, left, bottom,  left);
+		}
 
-	private static void emitRingMeshRight(final QuadEmitter emitter, final Matrix4f transformation, final int left, final int bottom, final int right, final int top) {
-		int i = 0;
-		emitPosSx(emitter, transformation, i++, right, bottom,  left);
-		emitPosSx(emitter, transformation, i++, right, top,     left);
-		emitPosSx(emitter, transformation, i++, right, top,    right);
-		emitPosSx(emitter, transformation, i++, right, bottom, right);
-	}
+		public void emitBack(final QuadEmitter emitter) {
+			int i = 0;
+			emitPosSx(emitter, transformation, i++, right, bottom, right);
+			emitPosSx(emitter, transformation, i++, right, top,    right);
+			emitPosSx(emitter, transformation, i++, left,  top,    right);
+			emitPosSx(emitter, transformation, i++, left,  bottom, right);
+		}
 
-	private static void emitRingMesh(final QuadEmitter emitter, final TexCoordEmitter texEmitter, final Matrix4f transformation, final int left, final int bottom, final int right, final int top) {
-		emitRingMeshFront(emitter, transformation, left, bottom, right, top);
-		texEmitter.emit(emitter);
-		emitter.emit();
+		public void emitRight(final QuadEmitter emitter) {
+			int i = 0;
+			emitPosSx(emitter, transformation, i++, right, bottom,  left);
+			emitPosSx(emitter, transformation, i++, right, top,     left);
+			emitPosSx(emitter, transformation, i++, right, top,    right);
+			emitPosSx(emitter, transformation, i++, right, bottom, right);
+		}
 
-		emitRingMeshLeft(emitter, transformation, left, bottom, right, top);
-		texEmitter.emit(emitter);
-		emitter.emit();
+		public void emit(final QuadEmitter emitter, final TexCoordEmitter texEmitter) {
+			emitFront(emitter);
+			texEmitter.emit(emitter);
+			emitter.emit();
 
-		emitRingMeshBack(emitter, transformation, left, bottom, right, top);
-		texEmitter.emit(emitter);
-		emitter.emit();
+			emitLeft(emitter);
+			texEmitter.emit(emitter);
+			emitter.emit();
 
-		emitRingMeshRight(emitter, transformation, left, bottom, right, top);
-		texEmitter.emit(emitter);
-		emitter.emit();
+			emitBack(emitter);
+			texEmitter.emit(emitter);
+			emitter.emit();
+
+			emitRight(emitter);
+			texEmitter.emit(emitter);
+			emitter.emit();
+		}
 	}
 
 	private static void emitTubeMesh(final QuadEmitter emitter, final TexCoordEmitter texEmitter, final Matrix4f transformation, final int length) {
 		final int l = 5 - length;
-
-		emitRingMesh(emitter, texEmitter, transformation, 6, l, 10, 5);
+		(new RingMeshEmitter(transformation, 6, l, 10, 5)).emit(emitter, texEmitter);
 	}
 
 	private static void emitEndCapMesh(final QuadEmitter emitter, final TexCoordEmitter texEmitter, final Matrix4f transformation) {
@@ -217,24 +233,21 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		emitter.emit();
 	}
 
-	private static void emitPortMesh(final QuadEmitter emitter, final TexCoordEmitter shortTubeTexEmitter, final TexCoordEmitter endTexEmitter, final TexCoordEmitter sideTexEmitter, final Matrix4f transformation) {
+	private static void emitPortMesh(final QuadEmitter emitter, final TexCoordEmitter shortTubeTexEmitter, final TexCoordEmitter sideTexEmitter, final TexCoordEmitter endTexEmitter, final Matrix4f transformation) {
 		// Short tube
 		emitTubeMesh(emitter, shortTubeTexEmitter, transformation, 1);
+		// Side
+		(new RingMeshEmitter(transformation, 4, 0, 12, 4)).emit(emitter, sideTexEmitter);
 		// End
 		emitEndCapMesh(emitter, endTexEmitter, transformation);
-		// Side
-		emitRingMesh(emitter, sideTexEmitter, transformation, 4, 0, 12, 4);
 	}
 
 	private static void emitBlockerMesh(final QuadEmitter emitter, final Sprite sprite, final Matrix4f transformation) {
 		// We have to build the ring here manually, since the texture for each face differs
-		final int posLeft   =  5;
-		final int posBottom =  4;
-		final int posRight  = 11;
-		final int posTop    =  5;
 		TexCoordEmitter texEmitter;
+		final RingMeshEmitter ringMeshEmitter = new RingMeshEmitter(transformation, 5, 4, 11, 5);
 
-		emitRingMeshFront(emitter, transformation, posLeft, posBottom, posRight, posTop);
+		ringMeshEmitter.emitFront(emitter);
 		texEmitter = new TexCoordEmitter(sprite, 5, 5, 11, 6);
 		texEmitter.emitUpperRight(emitter);
 		texEmitter.emitLowerRight(emitter);
@@ -243,7 +256,7 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		texEmitter.finishEmit(emitter);
 		emitter.emit();
 
-		emitRingMeshLeft(emitter, transformation, posLeft, posBottom, posRight, posTop);
+		ringMeshEmitter.emitLeft(emitter);
 		texEmitter = new TexCoordEmitter(sprite, 10, 5, 11, 11);
 		texEmitter.emitUpperLeft(emitter);
 		texEmitter.emitUpperRight(emitter);
@@ -252,11 +265,11 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		texEmitter.finishEmit(emitter);
 		emitter.emit();
 
-		emitRingMeshBack(emitter, transformation, posLeft, posBottom, posRight, posTop);
+		ringMeshEmitter.emitBack(emitter);
 		(new TexCoordEmitter(sprite, 5, 10, 11, 11)).emit(emitter);
 		emitter.emit();
 
-		emitRingMeshRight(emitter, transformation, posLeft, posBottom, posRight, posTop);
+		ringMeshEmitter.emitRight(emitter);
 		texEmitter = new TexCoordEmitter(sprite, 5, 5, 6, 11);
 		texEmitter.emitLowerRight(emitter);
 		texEmitter.emitLowerLeft(emitter);
@@ -265,7 +278,6 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		texEmitter.finishEmit(emitter);
 		emitter.emit();
 
-		//~ squareSx(emitter, dir, 5, 5, 11, 11, 4);
 		emitPosSx(emitter, transformation, 0, 11, 4,  5);
 		emitPosSx(emitter, transformation, 1, 11, 4, 11);
 		emitPosSx(emitter, transformation, 2,  5, 4, 11);
@@ -314,16 +326,20 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 
 	@Override
 	public BakedModel bake(ModelLoader loader, Function<SpriteIdentifier, Sprite> textureGetter, ModelBakeSettings rotationContainer, Identifier modelId) {
-		// Get the sprites
-		for(int i = 0; i < SPRITE_IDS.length; ++i) {
-			SPRITES[i] = textureGetter.apply(SPRITE_IDS[i]);
-		}
+		final Sprite coreSprite    = textureGetter.apply(SPRITE_IDS[0]);
+		final Sprite tubeSprite    = textureGetter.apply(SPRITE_IDS[1]);
+		final Sprite blockerSprite = textureGetter.apply(SPRITE_IDS[2]);
+		final Sprite sideCapSprite = textureGetter.apply(SPRITE_IDS[3]);
+		final Sprite endCapSprite  = textureGetter.apply(SPRITE_IDS[4]);
+
+		blockBreakSprite = coreSprite;
+
 		final Renderer renderer = RendererAccess.INSTANCE.getRenderer();
 		final MeshBuilder builder = renderer.meshBuilder();
 		final QuadEmitter emitter = builder.getEmitter();
 
 		// Build core mesh
-		final TexCoordEmitter coreTexEmitter = new TexCoordEmitter(SPRITES[0], 5, 5, 11, 11);
+		final TexCoordEmitter coreTexEmitter = new TexCoordEmitter(coreSprite, 5, 5, 11, 11);
 
 		for (final Direction dir : Direction.values()) {
 			squareSx(emitter, dir, 5, 5, 11, 11, 5);
@@ -334,16 +350,16 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 		coreMesh = builder.build();
 
 		final Matrix4f[] cardTransforms = buildCardinalTransformations();
-		final TexCoordEmitter tubeTexEmitter = new TexCoordEmitter(SPRITES[1], 0, 0, 4, 5);
-		final TexCoordEmitter shortTubeTexEmitter = new TexCoordEmitter(SPRITES[1], 0, 0, 4, 1);
+		final TexCoordEmitter tubeTexEmitter      = new TexCoordEmitter(tubeSprite, 0, 0, 4, 5);
+		final TexCoordEmitter shortTubeTexEmitter = new TexCoordEmitter(tubeSprite, 0, 0, 4, 1);
 
-		final TexCoordEmitter passivePortEndCapTexEmitter   = new TexCoordEmitter(SPRITES[2], 0, 0,  8,  8);
-		final TexCoordEmitter inserterPortEndCapTexEmitter  = new TexCoordEmitter(SPRITES[2], 8, 8, 16, 16);
-		final TexCoordEmitter extractorPortEndCapTexEmitter = new TexCoordEmitter(SPRITES[2], 0, 8,  8, 16);
+		final TexCoordEmitter passivePortSideCapTexEmitter   = new TexCoordEmitter(sideCapSprite, 0,  0, 8,  4);
+		final TexCoordEmitter inserterPortSideCapTexEmitter  = new TexCoordEmitter(sideCapSprite, 0, 12, 8, 16);
+		final TexCoordEmitter extractorPortSideCapTexEmitter = new TexCoordEmitter(sideCapSprite, 0,  8, 8, 12);
 
-		final TexCoordEmitter passivePortSideCapTexEmitter   = new TexCoordEmitter(SPRITES[3], 0,  0, 8,  4);
-		final TexCoordEmitter inserterPortSideCapTexEmitter  = new TexCoordEmitter(SPRITES[3], 0, 12, 8, 16);
-		final TexCoordEmitter extractorPortSideCapTexEmitter = new TexCoordEmitter(SPRITES[3], 0,  8, 8, 12);
+		final TexCoordEmitter passivePortEndCapTexEmitter   = new TexCoordEmitter(endCapSprite, 0, 0,  8,  8);
+		final TexCoordEmitter inserterPortEndCapTexEmitter  = new TexCoordEmitter(endCapSprite, 8, 8, 16, 16);
+		final TexCoordEmitter extractorPortEndCapTexEmitter = new TexCoordEmitter(endCapSprite, 0, 8,  8, 16);
 
 		for (int i = 0; i < DIRECTION_COUNT; ++i) {
 			final FaceMeshes meshes = new FaceMeshes();
@@ -352,16 +368,16 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 			emitTubeMesh(emitter, tubeTexEmitter, transformation, 5);
 			meshes.tube = builder.build();
 
-			emitBlockerMesh(emitter, SPRITES[4], transformation);
+			emitBlockerMesh(emitter, blockerSprite, transformation);
 			meshes.blocker = builder.build();
 
-			emitPortMesh(emitter, shortTubeTexEmitter, passivePortEndCapTexEmitter, passivePortSideCapTexEmitter, transformation);
+			emitPortMesh(emitter, shortTubeTexEmitter, passivePortSideCapTexEmitter, passivePortEndCapTexEmitter, transformation);
 			meshes.passivePort = builder.build();
 
-			emitPortMesh(emitter, shortTubeTexEmitter, inserterPortEndCapTexEmitter, inserterPortSideCapTexEmitter, transformation);
+			emitPortMesh(emitter, shortTubeTexEmitter, inserterPortSideCapTexEmitter, inserterPortEndCapTexEmitter, transformation);
 			meshes.inserterPort = builder.build();
 
-			emitPortMesh(emitter, shortTubeTexEmitter, extractorPortEndCapTexEmitter, extractorPortSideCapTexEmitter, transformation);
+			emitPortMesh(emitter, shortTubeTexEmitter, extractorPortSideCapTexEmitter, extractorPortEndCapTexEmitter, transformation);
 			meshes.extractorPort = builder.build();
 
 			faceMeshes[i] = meshes;
@@ -378,7 +394,7 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 
 	@Override
 	public boolean useAmbientOcclusion() {
-		return false; // Again, we don't really care, etc...
+		return false;
 	}
 
 	@Override
@@ -398,7 +414,7 @@ public class PipeModel implements UnbakedModel, BakedModel, FabricBakedModel {
 
 	@Override
 	public Sprite getSprite() {
-		return SPRITES[0]; // Block break particle, let's use furnace_top
+		return blockBreakSprite;
 	}
 
 	@Override
