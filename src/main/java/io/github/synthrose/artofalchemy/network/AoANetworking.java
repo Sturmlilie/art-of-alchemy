@@ -1,6 +1,7 @@
 package io.github.synthrose.artofalchemy.network;
 
 import io.github.synthrose.artofalchemy.ArtOfAlchemy;
+import io.github.synthrose.artofalchemy.blockentity.BlockEntityPipe;
 import io.github.synthrose.artofalchemy.essentia.EssentiaContainer;
 import io.github.synthrose.artofalchemy.essentia.EssentiaStack;
 import io.github.synthrose.artofalchemy.item.ItemJournal;
@@ -13,6 +14,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 import java.util.stream.Stream;
@@ -23,6 +25,7 @@ public class AoANetworking {
 	public static final Identifier ESSENTIA_PACKET_REQ = ArtOfAlchemy.id("update_essentia_req");
 	public static final Identifier JOURNAL_SELECT_PACKET = ArtOfAlchemy.id("journal_select");
 	public static final Identifier JOURNAL_REFRESH_PACKET = ArtOfAlchemy.id("journal_refresh");
+	public static final Identifier PIPE_FACE_UPDATE = ArtOfAlchemy.id("pipe_face_update");
 
 	public static void initializeNetworking() {
 		ServerSidePacketRegistry.INSTANCE.register(JOURNAL_SELECT_PACKET,
@@ -39,28 +42,28 @@ public class AoANetworking {
 				});
 	}
 
-	
+
 	public static void sendEssentiaPacket(World world, BlockPos pos, int essentiaId, EssentiaContainer container) {
 		Stream<PlayerEntity> players = PlayerStream.watching(world, pos);
-		
+
 		PacketByteBuf data = new PacketByteBuf(Unpooled.buffer());
 		data.writeInt(essentiaId);
 		data.writeCompoundTag(container.toTag());
 		data.writeBlockPos(pos);
-		
+
 		players.forEach(player -> ServerSidePacketRegistry.INSTANCE.sendToPlayer(player, ESSENTIA_PACKET, data));
 	}
-	
+
 	public static void sendEssentiaPacketWithRequirements(World world, BlockPos pos, int essentiaId,
 														  EssentiaContainer container, EssentiaStack required) {
 		Stream<PlayerEntity> players = PlayerStream.watching(world, pos);
-		
+
 		PacketByteBuf data = new PacketByteBuf(Unpooled.buffer());
 		data.writeInt(essentiaId);
 		data.writeCompoundTag(container.toTag());
 		data.writeCompoundTag(required.toTag());
 		data.writeBlockPos(pos);
-		
+
 		players.forEach(player -> ServerSidePacketRegistry.INSTANCE.sendToPlayer(player, ESSENTIA_PACKET_REQ, data));
 	}
 
@@ -70,4 +73,14 @@ public class AoANetworking {
 		ServerSidePacketRegistry.INSTANCE.sendToPlayer(player, JOURNAL_REFRESH_PACKET, data);
 	}
 
+	public static void sendPipeFaceUpdate(World world, BlockPos pos, Direction dir, BlockEntityPipe.IOFace face) {
+		Stream<PlayerEntity> players = PlayerStream.watching(world, pos);
+
+		PacketByteBuf data = new PacketByteBuf(Unpooled.buffer());
+		data.writeEnumConstant(dir);
+		data.writeEnumConstant(face);
+		data.writeBlockPos(pos);
+
+		players.forEach(player -> ServerSidePacketRegistry.INSTANCE.sendToPlayer(player, PIPE_FACE_UPDATE, data));
+	}
 }

@@ -5,6 +5,7 @@ import io.github.synthrose.artofalchemy.blockentity.BlockEntityPipe;
 import io.github.synthrose.artofalchemy.blockentity.BlockEntityPipe.IOFace;
 import io.github.synthrose.artofalchemy.item.AoAItems;
 import io.github.synthrose.artofalchemy.item.ItemEssentiaPort;
+import io.github.synthrose.artofalchemy.network.AoANetworking;
 import io.github.synthrose.artofalchemy.transport.EssentiaNetwork;
 import io.github.synthrose.artofalchemy.transport.EssentiaNetworker;
 import io.github.synthrose.artofalchemy.transport.NetworkElement;
@@ -88,6 +89,18 @@ public class BlockPipe extends Block implements NetworkElement, BlockEntityProvi
 		}
 	}
 
+	public static void scheduleChunkRebuild(World world, BlockPos pos) {
+		if (world.isClient()) {
+			MinecraftClient.getInstance().worldRenderer.updateBlock(world, pos, null, null, 0);
+		}
+	}
+
+	private void setFaceClient(World world, BlockPos pos, Direction dir, IOFace face) {
+		// Only the server should ever call this
+		assert !world.isClient;
+		AoANetworking.sendPipeFaceUpdate(world, pos, dir, face);
+	}
+
 	public boolean hasNodes(World world, BlockPos pos) {
 		return !getNodes(world, pos).isEmpty();
 	}
@@ -107,6 +120,7 @@ public class BlockPipe extends Block implements NetworkElement, BlockEntityProvi
 	public boolean faceOpen(World world, BlockPos pos, Direction dir) {
 		if (world.getBlockState(pos).getBlock() == this) {
 			IOFace face = getFace(world, pos, dir);
+			System.out.printf("Face for (%s) is: (%s)\n", dir, face);
 			return (face == IOFace.NONE || face == IOFace.CONNECT);
 		} else {
 			return false;
@@ -145,12 +159,18 @@ public class BlockPipe extends Block implements NetworkElement, BlockEntityProvi
 	public void neighborUpdate(BlockState state, World world, BlockPos pos, Block block, BlockPos fromPos, boolean notify) {
 		super.neighborUpdate(state, world, pos, block, fromPos, notify);
 		for (Direction dir : Direction.values()) {
-			if (fromPos.subtract(pos) == dir.getVector()) {
+			if (fromPos.subtract(pos).equals(dir.getVector())) {
+				System.out.printf("Found neighbour for dir: (%s)\n", dir);
 				if (faceOpen(world, pos, dir) && faceOpen(world, fromPos, dir.getOpposite())) {
+					System.out.printf("For dir: [%s], setting face: [%s]\n", dir, IOFace.CONNECT);
 					setFace(world, pos, dir, IOFace.CONNECT);
+					setFaceClient(world, pos, dir, IOFace.CONNECT);
 				} else if (getFace(world, pos, dir) == IOFace.CONNECT) {
 					setFace(world, pos, dir, IOFace.NONE);
+					setFaceClient(world, pos, dir, IOFace.NONE);
+					System.out.printf("For dir: [%s], setting face: [%s]\n", dir, IOFace.CONNECT);
 				}
+				scheduleChunkRebuild(world, pos);
 			}
 		}
 	}
@@ -190,14 +210,6 @@ public class BlockPipe extends Block implements NetworkElement, BlockEntityProvi
 		super.onStateReplaced(state, world, pos, newState, notify);
 		if (!world.isClient()) {
 			EssentiaNetworker.get((ServerWorld) world).remove(pos, getConnections(world, pos));
-		}
-	}
-
-	private void scheduleChunkRebuild(World world, BlockPos pos) {
-		if (world.isClient()) {
-			// Passing null for state works, but let's be safe
-			final BlockState state = getDefaultState();
-			MinecraftClient.getInstance().worldRenderer.updateBlock(world, pos, state, state, 0);
 		}
 	}
 
